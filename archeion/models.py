@@ -60,3 +60,17 @@ class OAuth2(object):
         self.authorisation_client = AuthClient(
             authorizer=authorizer
         )
+
+
+class Utilities(OAuth2):
+    def search_shared_endpoints(self, query):
+        endpoints = self.transfer_client.endpoint_search(
+            query
+        )
+        search_results = dict()
+        for endpoint in endpoints:
+            search_results[
+                endpoint["display_name"]
+                or endpoint["canonical_name"]
+            ] = endpoint["id"]
+        return search_results
