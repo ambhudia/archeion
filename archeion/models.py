@@ -137,3 +137,63 @@ class Endpoint(OAuth2):
                 endpoint["display_name"]
             ] = endpoint["id"]
         return search_results
+
+
+class Transfer():
+    def __init__(
+        endpoint1,
+        endpoint2,
+        label,
+        sync_level="checksum",
+    ):
+        if not isinstance(endpoint1, Endpoint):
+            raise AttributeError(
+                'Positional argument `endpoint1` expected to be `:py:class:Endpoint`',
+                ', recieved `:py:class:{0} instead'.format(type(endpoint1))
+                )
+        if not isinstance(endpoint2, Endpoint):
+            raise AttributeError(
+                'Positional argument `endpoint1` expected to be `:py:class:Endpoint`',
+                ', recieved `:py:class:{0} instead'.format(type(endpoint1))
+                )
+        self.endpoint1 = endpoint1
+        self.endpoint2 = endpoint2
+        self.endpoint1.transfer_client.get_submission_id()
+        self.transfer_data = TransferData(
+            self.endpoint1.transfer_client,
+            self.endpoint1.endpoint_id,
+            self.endpoint2.endpoint_id,
+            label=label,
+            sync_level=sync_level,
+        )
+
+    def add(
+        self,
+        endpoint_path,
+        shared_endpoint_path,
+        recursive=True,
+    ):
+        self.transfer_data.add_item(
+            endpoint_path,
+            shared_endpoint_path,
+            recursive=recursive,
+        )
+        # TODO logging
+
+    def submit(self):
+        status = self.transfer_client.submit_transfer(
+            transfer_data
+        )
+        if "has been accepted" in status["message"]:
+            pass  # TODO
+        else:
+            pass  # TODO
+
+    def status(self):
+        status = self.transfer_client.task_event_list(
+            transfer_result["task_id"]
+        )["code"]
+        if status is "STARTED":
+            pass  # TODO
+        else:
+            pass  # TODO
