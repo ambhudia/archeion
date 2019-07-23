@@ -74,3 +74,66 @@ class Utilities(OAuth2):
                 or endpoint["canonical_name"]
             ] = endpoint["id"]
         return search_results
+        
+
+class Endpoint(OAuth2):
+    def __init__(self, endpoint_id, oauth=None):
+        if type(oauth) is OAuth2:
+            self.__dict__ = oauth.__dict__.copy()
+        elif oauth is None:
+            super().__init__()
+        else:
+            pass  # TODO exit condition
+        self.endpoint_id = endpoint_id
+        r = self.transfer_client.endpoint_autoactivate(
+            self.endpoint_id, if_expires_in=3600
+        )
+        while r["code"] == "AutoActivationFailed":
+            print(
+                "Endpoint requires manual activation, please open "
+                "the following URL in a browser to activate the "
+                "endpoint:"
+            )
+            print(
+                "https://app.globus.org/file-manager?origin_id=%s"
+                % shared_endpoint_id
+            )
+            input(
+                "Press ENTER after activating the endpoint:"
+            )
+            r = self.transfer_client.endpoint_autoactivate(
+                endpoint_id, if_expires_in=3600
+            )
+
+    def __repr__(self):
+        endpoint = tc.get_endpoint(host_id)
+        return "Shared Endpoint name: {0}".format(
+            endpoint["display_name"]
+            or endpoint["canonical_name"]
+        )
+
+    def dir(self, path):
+        files, folders = [], []
+        for fyle in self.transfer_client.operation_ls(
+            self.shared_endpoint_id, path=path
+        ):
+            if fyle["type"] == "file":
+                files.append(fyle["name"])
+            else:
+                folders.append(fyle["name"])
+        return dict(files=files, folders=folders)
+
+    def ls(self, path):
+        SharedEndpoint.dir(path)
+
+    def search_endpoints(self, num_results=25):
+        endpoints = self.transfer_client.endpoint_search(
+            filter_scope="my-endpoints",
+            num_results=num_results,
+        )
+        search_results = dict()
+        for endpoint in endpoints:
+            search_results[
+                endpoint["display_name"]
+            ] = endpoint["id"]
+        return search_results
