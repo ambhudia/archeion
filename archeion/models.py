@@ -4,7 +4,7 @@ from globus_sdk import (
     AccessTokenAuthorizer,
     NativeAppAuthClient,
     TransferData,
-    RefreshTokenAuthorizer
+    RefreshTokenAuthorizer,
 )
 from conf import CLIENT_ID
 import webbrowser
@@ -12,16 +12,16 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler('archeion.log')
-formatter = logging.Formatter(
-    '%(asctime)s : %(levelname)s : %(name)s : %(message)s'
-    )
+file_handler = logging.FileHandler("archeion.log")
+formatter = logging.Formatter("%(asctime)s : %(levelname)s : %(name)s : %(message)s")
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
+
 
 class OAuth2(object):
     """Base class for OAuth2 model
     """
+
     def __init__(self):
         """Initiate an OAuth2() object.
 
@@ -38,14 +38,14 @@ class OAuth2(object):
         self.client = NativeAppAuthClient(CLIENT_ID)
         self.client.oauth2_start_flow(refresh_tokens=True)
 
-        logger.info('Opening browser window for Globus Authentication')
+        logger.info("Opening browser window for Globus Authentication")
         webbrowser.open_new(self.client.oauth2_get_authorize_url())
 
         get_input = getattr(__builtins__, "raw_input", input)
         auth_code = get_input(
             "Please enter the code you get after login here: "
         ).strip()
-        logger.debug('User has input authentication code')
+        logger.debug("User has input authentication code")
         token_response = self.client.oauth2_exchange_code_for_tokens(auth_code)
 
         self.access_token = token_response.by_resource_server["auth.globus.org"][
@@ -62,7 +62,9 @@ class OAuth2(object):
             access_token=self.transfer_token,
             expires_at=self.transfer_expiry_seconds,
         )
-        self.transfer_client = TransferClient(AccessTokenAuthorizer(self.transfer_token))
+        self.transfer_client = TransferClient(
+            AccessTokenAuthorizer(self.transfer_token)
+        )
         self.authorisation_client = AuthClient(authorizer=authorizer)
 
 
@@ -92,6 +94,7 @@ def search_shared_endpoints(authorizer, query):
 class Endpoint(OAuth2):
     """Class for Endpoint Model
     """
+
     def __init__(self, endpoint_id, oauth=None):
         """Initiate an Endpoint() instance
 
@@ -118,17 +121,17 @@ class Endpoint(OAuth2):
             >>> endpoint = Endpoint('499930f1-5c43-11e7-bf29-22000b9a448b')
 
         """
-        if 'OAuth2' in str(oauth.__class__):
+        if "OAuth2" in str(oauth.__class__):
             self.__dict__ = oauth.__dict__.copy()
         elif oauth is None:
             super().__init__()
         else:
             raise TypeError(
-                'Argument `oauth` expected to be :py:class:models.OAuth2 or None.' 
-                'Received {0} instead'.format(type(oauth))
-                )
+                "Argument `oauth` expected to be :py:class:models.OAuth2 or None."
+                "Received {0} instead".format(type(oauth))
+            )
         self.endpoint_id = endpoint_id
-        self.autoactivate()   
+        self.autoactivate()
 
     def autoactivate(self, if_expires_in=3600):
         """Autoactivate an Endpoint instance
@@ -142,9 +145,9 @@ class Endpoint(OAuth2):
 
         Parameters
         ----------
-        if_expires_in : int
+        if_expires_in : int [default: 3600]
             Number of seconds exndpoint should have left before expiry to 
-            warrant autoactivation. Default value is 3600.
+            warrant autoactivation. 
         
         Examples
         --------
@@ -155,9 +158,8 @@ class Endpoint(OAuth2):
 
         """
         r = self.transfer_client.endpoint_autoactivate(
-            self.endpoint_id, if_expires_in=if_expires_in 
+            self.endpoint_id, if_expires_in=if_expires_in
         )
-        print(r['code'])
         while r["code"] == "AutoActivationFailed":
             logger.info(
                 "Endpoint requires manual activation, please open "
@@ -168,10 +170,10 @@ class Endpoint(OAuth2):
                 "https://app.globus.org/file-manager?origin_id=%s" % self.endpoint_id
             )
             resp = input("Press ENTER after activating the endpoint:").strip()
-            if resp == 'break':
+            if resp == "break":
                 break
             r = self.transfer_client.endpoint_autoactivate(
-                self.endpoint_id, if_expires_in=if_expires_in 
+                self.endpoint_id, if_expires_in=if_expires_in
             )
 
     def __repr__(self):
@@ -181,11 +183,9 @@ class Endpoint(OAuth2):
         )
 
     def dir(self, path):
-        logging.debug('Checking contents of directory `path`')
+        logging.debug("Checking contents of directory `path`")
         files, folders = [], []
-        for fyle in self.transfer_client.operation_ls(
-            self.endpoint_id, path=path
-        ):
+        for fyle in self.transfer_client.operation_ls(self.endpoint_id, path=path):
             if fyle["type"] == "file":
                 files.append(fyle["name"])
             else:
@@ -196,11 +196,15 @@ class Endpoint(OAuth2):
         self.transfer_client.operation_mkdir(self.endpoint_id, path=path)
 
     def mv(self, oldpath, newpath):
-        logging.debug('Moving {0} to {1} on endpoint {2}'.format(oldpath, newpath, self.endpoint_id))
+        logging.debug(
+            "Moving {0} to {1} on endpoint {2}".format(
+                oldpath, newpath, self.endpoint_id
+            )
+        )
         self.transfer_client.operation_rename(
             self.endpoint_id, oldpath=oldpath, newpath=newpath
         )
-        
+
     def ls(self, path):
         return self.dir(path)
 
@@ -215,13 +219,64 @@ class Endpoint(OAuth2):
 
 
 class Transfer:
-    def __init__(endpoint1, endpoint2, label, sync_level="checksum"):
-        if not 'Endpoint' in str(endpoint1.__class__):
+    def __init__(
+        self,
+        endpoint1,
+        endpoint2,
+        label,
+        sync_level="checksum",
+        verify_checksum=False,
+        encrypt_data=False,
+    ):
+        """
+        Parameters
+        ----------
+        endpoint1 : :py:class:models.Endpoint
+            The endpoint to transfer from
+        
+        endp
+        
+        sync_level : int or string [default: "checksum"]
+            "exists", "size", "mtime", or "checksum"
+            For compatibility, this can also be 0, 1, 2, or 3
+
+            The meanings are as follows:
+
+            0, exists
+            Determine whether or not to transfer based on file existence. If the
+            destination file is absent, do the transfer.
+
+            1, size
+            Determine whether or not to transfer based on the size of the file. If
+            destination file size does not match the source, do the transfer.
+
+            2, mtime
+            Determine whether or not to transfer based on modification times. If source
+            has a newer modififed time than the destination, do the transfer.
+
+            3, checksum
+            Determine whether or not to transfer based on checksums of file contents. If
+            source and destination contents differ, as determined by a checksum of their
+            contents, do the transfer.
+
+        verify_checksum :  bool [default: False]
+            When true, after transfer verify that the source and destination file
+            checksums match. If they don't, re-transfer the entire file and keep
+            trying until it succeeds.
+
+            This will create CPU load on both the origin and destination of the transfer,
+            and may even be a bottleneck if the network speed is high enough.
+
+        encrypt_data : bool [default: False]
+            When true, all files will be TLS-protected during transfer.
+
+        """
+        if not "Endpoint" in str(endpoint1.__class__):
             raise AttributeError(
                 "Positional argument `endpoint1` expected to be `:py:class:Endpoint`",
                 ", recieved `:py:class:{0} instead".format(type(endpoint1)),
             )
-        if not 'Endpoint' in str(endpoint2.__class__)
+        if not "Endpoint" in str(endpoint2.__class__):
             raise AttributeError(
                 "Positional argument `endpoint1` expected to be `:py:class:Endpoint`",
                 ", recieved `:py:class:{0} instead".format(type(endpoint1)),
@@ -235,26 +290,35 @@ class Transfer:
             self.endpoint2.endpoint_id,
             label=label,
             sync_level=sync_level,
+            encrypt_data=encrypt_data,
         )
+        self.add_transfers = []
 
-    def add(self, endpoint_path, shared_endpoint_path, recursive=True):
-        self.transfer_data.add_item(
-            endpoint_path, shared_endpoint_path, recursive=recursive
+    def add(self, endpoint1_path, endpoint2_path, recursive=True):
+        self.transfer_data.add_item(endpoint1_path, endpoint2_path, recursive=recursive)
+        logger.info(
+            "Added transfer of {0} on endpoint {1} to {2} on endpoint {3}".format(
+                endpoint1_path,
+                self.endpoint1.endpoint_id,
+                endpoint2_path,
+                self.endpoint2.endpoint_id,
+            )
         )
-        # TODO logging
 
     def submit(self):
-        status = self.transfer_client.submit_transfer(transfer_data)
-        if "has been accepted" in status["message"]:
+        self.transfer_submission = self.endpoint1.transfer_client.submit_transfer(
+            self.transfer_data
+        )
+        if "has been accepted" in self.transfer_submission["message"]:
             pass  # TODO
+        elif "Duplicate" in self.transfer_submission["message"]:
+            pass
         else:
-            pass  # TODO
+            pass
 
     def status(self):
-        status = self.transfer_client.task_event_list(transfer_result["task_id"])[
-            "code"
-        ]
-        if status is "STARTED":
-            pass  # TODO
-        else:
-            pass  # TODO
+        status = self.endpoint1.transfer_client.task_event_list(
+            self.transfer_submission["task_id"]
+        )[0]
+        update = '{0}: {1}'.format(status['code'], status['details'])
+        return update
