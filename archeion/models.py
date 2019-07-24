@@ -4,6 +4,7 @@ from globus_sdk import (
     AccessTokenAuthorizer,
     NativeAppAuthClient,
     TransferData,
+    RefreshTokenAuthorizer
 )
 from conf import CLIENT_ID
 
