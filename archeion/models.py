@@ -4,14 +4,16 @@ from globus_sdk import (
     AccessTokenAuthorizer,
     NativeAppAuthClient,
     TransferData,
-    RefreshTokenAuthorizer
+    RefreshTokenAuthorizer,
 )
 from conf import CLIENT_ID
 import webbrowser
 
+
 class OAuth2(object):
     """Base class for OAuth2 model
     """
+
     def __init__(self):
         """Initiate an OAuth2() object.
 
@@ -80,6 +82,7 @@ def search_shared_endpoints(authorizer, query):
 class Endpoint(OAuth2):
     """Class for Endpoint Model
     """
+
     def __init__(self, endpoint_id, oauth=None):
         """Initiate an Endpoint() instance
 
@@ -112,11 +115,11 @@ class Endpoint(OAuth2):
             super().__init__()
         else:
             raise TypeError(
-                'Argument `oauth` expected to be :py:class:archeion.models.OAuth2 or None.' 
-                'Received {0} instead'.format(type(oauth))
-                )
+                "Argument `oauth` expected to be :py:class:archeion.models.OAuth2 or None."
+                "Received {0} instead".format(type(oauth))
+            )
         self.endpoint_id = endpoint_id
-        self.autoactivate()   
+        self.autoactivate()
 
     def autoactivate(self, if_expires_in=3600):
         """Autoactivate an Endpoint instance
@@ -139,7 +142,7 @@ class Endpoint(OAuth2):
 
         """
         r = self.transfer_client.endpoint_autoactivate(
-            self.endpoint_id, if_expires_in=if_expires_in 
+            self.endpoint_id, if_expires_in=if_expires_in
         )
         while r["code"] == "AutoActivationFailed":
             print(
@@ -152,7 +155,7 @@ class Endpoint(OAuth2):
             )
             input("Press ENTER after activating the endpoint:")
             r = self.transfer_client.endpoint_autoactivate(
-                endpoint_id, if_expires_in=if_expires_in 
+                endpoint_id, if_expires_in=if_expires_in
             )
 
     def __repr__(self):
