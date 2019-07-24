@@ -4,16 +4,24 @@ from globus_sdk import (
     AccessTokenAuthorizer,
     NativeAppAuthClient,
     TransferData,
-    RefreshTokenAuthorizer,
+    RefreshTokenAuthorizer
 )
 from conf import CLIENT_ID
 import webbrowser
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler('archeion.log')
+formatter = logging.Formatter(
+    '%(asctime)s : %(levelname)s : %(name)s : %(message)s'
+    )
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 class OAuth2(object):
     """Base class for OAuth2 model
     """
-
     def __init__(self):
         """Initiate an OAuth2() object.
 
@@ -30,12 +38,14 @@ class OAuth2(object):
         self.client = NativeAppAuthClient(CLIENT_ID)
         self.client.oauth2_start_flow(refresh_tokens=True)
 
+        logger.info('Opening browser window for Globus Authentication')
         webbrowser.open_new(self.client.oauth2_get_authorize_url())
 
         get_input = getattr(__builtins__, "raw_input", input)
         auth_code = get_input(
             "Please enter the code you get after login here: "
         ).strip()
+        logger.debug('User has input authentication code')
         token_response = self.client.oauth2_exchange_code_for_tokens(auth_code)
 
         self.access_token = token_response.by_resource_server["auth.globus.org"][
@@ -52,7 +62,7 @@ class OAuth2(object):
             access_token=self.transfer_token,
             expires_at=self.transfer_expiry_seconds,
         )
-        self.transfer_client = TransferClient(AccessTokenAuthorizer(TRANSFER_TOKEN))
+        self.transfer_client = TransferClient(AccessTokenAuthorizer(self.transfer_token))
         self.authorisation_client = AuthClient(authorizer=authorizer)
 
 
@@ -82,7 +92,6 @@ def search_shared_endpoints(authorizer, query):
 class Endpoint(OAuth2):
     """Class for Endpoint Model
     """
-
     def __init__(self, endpoint_id, oauth=None):
         """Initiate an Endpoint() instance
 
@@ -93,7 +102,7 @@ class Endpoint(OAuth2):
         ----------
         endpoint_id : string
             Globus Endpoint ID
-        oauth : :py:class:archeion.models.OAuth2 or None
+        oauth : :py:class:models.OAuth2 or None
             Authotizer. If passed None insted of OAuth2 instance,
             authorizer will be intitated from OAuth2 class.        
 
@@ -109,23 +118,27 @@ class Endpoint(OAuth2):
             >>> endpoint = Endpoint('499930f1-5c43-11e7-bf29-22000b9a448b')
 
         """
-        if type(oauth) is OAuth2:
+        if 'OAuth2' in str(oauth.__class__):
             self.__dict__ = oauth.__dict__.copy()
         elif oauth is None:
             super().__init__()
         else:
             raise TypeError(
-                "Argument `oauth` expected to be :py:class:archeion.models.OAuth2 or None."
-                "Received {0} instead".format(type(oauth))
-            )
+                'Argument `oauth` expected to be :py:class:models.OAuth2 or None.' 
+                'Received {0} instead'.format(type(oauth))
+                )
         self.endpoint_id = endpoint_id
-        self.autoactivate()
+        self.autoactivate()   
 
     def autoactivate(self, if_expires_in=3600):
         """Autoactivate an Endpoint instance
 
         Activate an instance if it is not activated or if its activation 
         will expire in `if_expires_in` seconds.
+
+        Some endpoints have limits for activation expiry. `if_expires_in` 
+        therefore has to be used carefully. For manual activation, user 
+        input 'break' will break the loop. 
 
         Parameters
         ----------
@@ -142,32 +155,36 @@ class Endpoint(OAuth2):
 
         """
         r = self.transfer_client.endpoint_autoactivate(
-            self.endpoint_id, if_expires_in=if_expires_in
+            self.endpoint_id, if_expires_in=if_expires_in 
         )
+        print(r['code'])
         while r["code"] == "AutoActivationFailed":
-            print(
+            logger.info(
                 "Endpoint requires manual activation, please open "
                 "the following URL in a browser to activate the "
                 "endpoint:"
             )
             webbrowser.open_new(
-                "https://app.globus.org/file-manager?origin_id=%s" % shared_endpoint_id
+                "https://app.globus.org/file-manager?origin_id=%s" % self.endpoint_id
             )
-            input("Press ENTER after activating the endpoint:")
+            resp = input("Press ENTER after activating the endpoint:").strip()
+            if resp == 'break':
+                break
             r = self.transfer_client.endpoint_autoactivate(
-                endpoint_id, if_expires_in=if_expires_in
+                self.endpoint_id, if_expires_in=if_expires_in 
             )
 
     def __repr__(self):
-        endpoint = tc.get_endpoint(host_id)
+        endpoint = self.transfer_client.get_endpoint(host_id)
         return "Shared Endpoint name: {0}".format(
             endpoint["display_name"] or endpoint["canonical_name"]
         )
 
     def dir(self, path):
+        logging.debug('Checking contents of directory `path`')
         files, folders = [], []
         for fyle in self.transfer_client.operation_ls(
-            self.shared_endpoint_id, path=path
+            self.endpoint_id, path=path
         ):
             if fyle["type"] == "file":
                 files.append(fyle["name"])
@@ -179,12 +196,13 @@ class Endpoint(OAuth2):
         self.transfer_client.operation_mkdir(self.endpoint_id, path=path)
 
     def mv(self, oldpath, newpath):
+        logging.debug('Moving {0} to {1} on endpoint {2}'.format(oldpath, newpath, self.endpoint_id))
         self.transfer_client.operation_rename(
             self.endpoint_id, oldpath=oldpath, newpath=newpath
         )
-
+        
     def ls(self, path):
-        SharedEndpoint.dir(path)
+        return self.dir(path)
 
     def search_endpoints(self, num_results=25):
         endpoints = self.transfer_client.endpoint_search(
@@ -198,12 +216,12 @@ class Endpoint(OAuth2):
 
 class Transfer:
     def __init__(endpoint1, endpoint2, label, sync_level="checksum"):
-        if not isinstance(endpoint1, Endpoint):
+        if not 'Endpoint' in str(endpoint1.__class__):
             raise AttributeError(
                 "Positional argument `endpoint1` expected to be `:py:class:Endpoint`",
                 ", recieved `:py:class:{0} instead".format(type(endpoint1)),
             )
-        if not isinstance(endpoint2, Endpoint):
+        if not 'Endpoint' in str(endpoint2.__class__)
             raise AttributeError(
                 "Positional argument `endpoint1` expected to be `:py:class:Endpoint`",
                 ", recieved `:py:class:{0} instead".format(type(endpoint1)),
