@@ -7,7 +7,7 @@ from globus_sdk import (
     RefreshTokenAuthorizer
 )
 from conf import CLIENT_ID
-
+import webbrowser
 
 class OAuth2(object):
     """Base class for OAuth2 model
@@ -28,11 +28,7 @@ class OAuth2(object):
         self.client = NativeAppAuthClient(CLIENT_ID)
         self.client.oauth2_start_flow(refresh_tokens=True)
 
-        print(
-            "Please go to this URL and login: {0}".format(
-                self.client.oauth2_get_authorize_url()
-            )
-        )
+        webbrowser.open_new(self.client.oauth2_get_authorize_url())
 
         get_input = getattr(__builtins__, "raw_input", input)
         auth_code = get_input(
