@@ -91,17 +91,17 @@ class Endpoint(OAuth2):
         endpoint_id : string
             Globus Endpoint ID
         oauth : :py:class:archeion.models.OAuth2 or None
-            Authotizer. If passsed None insted of OAuth2 instance,
+            Authotizer. If passed None insted of OAuth2 instance,
             authorizer will be intitated from OAuth2 class.        
 
         Examples
         --------
-        # from existing OAuth2 instance
+        From existing OAuth2 instance
             >>> from archeion.models import OAuth2, Endpoint
             >>> authorizer = OAuth2()
             >>> endpoint = Endpoint('499930f1-5c43-11e7-bf29-22000b9a448b', authorizer)
 
-        # from scratch
+        From scratch
             >>> from archeion.models import Endpoint
             >>> endpoint = Endpoint('499930f1-5c43-11e7-bf29-22000b9a448b')
 
@@ -111,10 +111,35 @@ class Endpoint(OAuth2):
         elif oauth is None:
             super().__init__()
         else:
-            pass  # TODO exit condition
+            raise TypeError(
+                'Argument `oauth` expected to be :py:class:archeion.models.OAuth2 or None.' 
+                'Received {0} instead'.format(type(oauth))
+                )
         self.endpoint_id = endpoint_id
+        self.autoactivate()   
+
+    def autoactivate(self, if_expires_in=3600):
+        """Autoactivate an Endpoint instance
+
+        Activate an instance if it is not activated or if its activation 
+        will expire in `if_expires_in` seconds.
+
+        Parameters
+        ----------
+        if_expires_in : int
+            Number of seconds exndpoint should have left before expiry to 
+            warrant autoactivation. Default value is 3600.
+        
+        Examples
+        --------
+        Autoactivate an endpoint instanceif it expires in 12 minutes
+            >>> from archeion.models import Endpoint
+            >>> endpoint = Endpoint('499930f1-5c43-11e7-bf29-22000b9a448b')
+            >>> endpoint.activate(if_expires_in=7200)
+
+        """
         r = self.transfer_client.endpoint_autoactivate(
-            self.endpoint_id, if_expires_in=3600
+            self.endpoint_id, if_expires_in=if_expires_in 
         )
         while r["code"] == "AutoActivationFailed":
             print(
@@ -122,12 +147,12 @@ class Endpoint(OAuth2):
                 "the following URL in a browser to activate the "
                 "endpoint:"
             )
-            print(
+            webbrowser.open_new(
                 "https://app.globus.org/file-manager?origin_id=%s" % shared_endpoint_id
             )
             input("Press ENTER after activating the endpoint:")
             r = self.transfer_client.endpoint_autoactivate(
-                endpoint_id, if_expires_in=3600
+                endpoint_id, if_expires_in=if_expires_in 
             )
 
     def __repr__(self):
