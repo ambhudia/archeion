@@ -39,12 +39,12 @@ Create another instance of Endpoint
 >>> my_endpoint=models.Endpoint(my_endpoint_id, authorizer
 ```
 
-Create a Transfer Client from ``my_endpoint`` to ``graham``
+Create a transfer client from ``my_endpoint`` to ``graham``
 ```python
 >>> transfer = models.Transfer(my_endpoint, graham,'Example')
 ```
 
-Add some files to you transfer client
+Add some files to your transfer client
 ```python
 >>> transfer.add('folder/on/my_endpoint', 'folder/on/graham')
 ```
