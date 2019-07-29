@@ -13,6 +13,7 @@ Get OAuth2 client
 ```python
 >>> from archeion import models
 >>> authorizer = models.OAuth2()
+```
 
 Search shared endpoints
 ```python
