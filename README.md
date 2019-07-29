@@ -35,13 +35,13 @@ Search for globus personal endpoints accessible from shared endpoint
 
 Create another instance of Endpoint 
 ```python
->>> my_endpoint_id=graham.search_endpoints()['My_Workstation']
+>>> my_endpoint_id = graham.search_endpoints()['My_Workstation']
 >>> my_endpoint=models.Endpoint(my_endpoint_id, authorizer
 ```
 
 Create a Transfer Client from ``my_endpoint`` to ``graham``
 ```python
->>> transfer=models.Transfer(my_endpoint, graham,'Example')
+>>> transfer = models.Transfer(my_endpoint, graham,'Example')
 ```
 
 Add some files to you transfer client
