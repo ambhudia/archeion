@@ -193,8 +193,11 @@ class Endpoint(OAuth2):
         return dict(files=files, folders=folders)
 
     def mkdir(self, path):
-        self.transfer_client.operation_mkdir(self.endpoint_id, path=path)
-
+        try:
+            self.transfer_client.operation_mkdir(self.endpoint_id, path=path)
+        except TransferAPIError:  # folder already exists
+            pass
+        
     def mv(self, oldpath, newpath):
         logging.debug(
             "Moving {0} to {1} on endpoint {2}".format(
